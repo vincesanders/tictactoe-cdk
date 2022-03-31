@@ -1,0 +1,92 @@
+#
+# This template demonstrates how to configure Amazon Route53 Failover record sets that use 
+# Amazon Route53 Application Recovery Controller (ARC) healthchecks
+#
+# For a full description of how it works, please read
+# https://aws.amazon.com/fr/blogs/aws/amazon-route-53-application-recovery-controller/
+#
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'This template creates Amazon Route53 DNS Failover Records with healthcheck for the Tic Tac Toe demo app'
+Parameters:
+  LoadBalancerDNSNameEast:
+    Description: The load balancer DNS name in region us-east-1
+    Type: String 
+
+  LoadBalancerDNSNameWest:
+    Description: The load balancer DNS name in region us-west-2
+    Type: String 
+
+  LoadBalancerHostedZoneEast:
+    Description: The load balancer hosted zone id in us-east-1
+    Type: String
+
+  LoadBalancerHostedZoneWest:
+    Description: The load balancer hosted zone id in us-west-2
+    Type: String
+
+  DNSHostedZone:
+    Description: The DNS hosted zone ID where you want to add the DNS aliases
+    Type: String 
+
+  DNSDomainName:
+    Description: The DNS domain name for that hosted zone ID 
+    Type: String 
+
+  DNSHealthcheckIdEast:
+    Description: The DNS domain name for that hosted zone ID 
+    Type: String 
+
+  DNSHealthcheckIdWest:
+    Description: The DNS domain name for that hosted zone ID 
+    Type: String 
+
+  ProjectId:
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric
+      characters.
+    Default: TicTacToe
+    Description: The name of the project
+    MaxLength: '64'
+    MinLength: '1'
+    Type: String
+
+Resources:
+
+#
+# The PRIMARY and SECONDARY failover DNS records.
+# These are A records as Aliases to the Load Balancer DNS name.
+#
+  FrontEndAliasRecordPrimary:
+      Type: AWS::Route53::RecordSet
+      Properties:
+        Comment: Failover Recordset to route traffic to the load balancer
+        HostedZoneId: !Sub ${DNSHostedZone}
+        Name: !Sub ${ProjectId}.${DNSDomainName}.
+        Type: A
+        AliasTarget:
+          DNSName: !Sub ${LoadBalancerDNSNameEast}
+          EvaluateTargetHealth: true
+          HostedZoneId: !Sub ${LoadBalancerHostedZoneEast}
+        SetIdentifier: !Sub ${ProjectId}-east 
+        Failover: PRIMARY 
+        HealthCheckId: !Sub ${DNSHealthcheckIdEast}
+
+  FrontEndAliasRecordSecondary:
+      Type: AWS::Route53::RecordSet
+      Properties:
+        Comment: Failover Recordset to route traffic to the load balancer
+        HostedZoneId: !Sub ${DNSHostedZone}
+        Name: !Sub ${ProjectId}.${DNSDomainName}.
+        Type: A
+        AliasTarget:
+          DNSName: !Sub ${LoadBalancerDNSNameWest}
+          EvaluateTargetHealth: true
+          HostedZoneId: !Sub ${LoadBalancerHostedZoneWest}
+        SetIdentifier: !Sub ${ProjectId}-west
+        Failover: SECONDARY 
+        HealthCheckId: !Sub ${DNSHealthcheckIdWest}
+
+Outputs:
+  DNSRecordName:
+    Value: !Ref FrontEndAliasRecordSecondary
+  
